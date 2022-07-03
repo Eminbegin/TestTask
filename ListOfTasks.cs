@@ -15,6 +15,7 @@ public class ListOfTasks
     public Dictionary<int, Task> Dict = new Dictionary<int, Task>();
     public Dictionary<int, SubTask> SubDict = new Dictionary<int, SubTask>();
     public Dictionary<int, Group> GroupDict = new Dictionary<int, Group>();
+
     private int LastId()
     {
         if (Dict.Any())
@@ -24,7 +25,7 @@ public class ListOfTasks
 
         return 0;
     }
-    
+
     private int LastGId()
     {
         if (GroupDict.Any())
@@ -87,7 +88,7 @@ public class ListOfTasks
 
         return true;
     }
-    
+
     public bool GroupContainsIn(int id)
     {
         if (!GroupDict.ContainsKey(id))
@@ -99,26 +100,85 @@ public class ListOfTasks
         return true;
     }
 
-    public int AddTask(Task t1)
+    public void AddTask()
     {
+        string input;
+        Task temp = new Task();
+        Console.WriteLine("Введите описание");
+        input = Console.ReadLine();
+        if (string.IsNullOrEmpty(input))
+        {
+            Environment.Exit(0);
+        }
+
+        temp.Description = input;
+        Console.WriteLine("Введите дату дедлайна (число, месяц, год); если его нет, введите \"-\"");
+        input = Console.ReadLine();
+        if (string.IsNullOrEmpty(input))
+        {
+            Environment.Exit(0);
+        }
+
+        if (input != "-")
+        {
+            string[] numsStrings = input.Split(", ");
+            temp.Dl = new DateTime(Convert.ToInt32(numsStrings[2]), Convert.ToInt32(numsStrings[1]),
+                Convert.ToInt32(numsStrings[0]));
+        }
+
         int nextTask = LastId() + 1;
-        Dict.Add(nextTask, t1);
-        t1.Id = nextTask;
-        return nextTask;
+        temp.Id = nextTask;
+        Dict.Add(nextTask, temp);
+        Console.WriteLine("Задача создана, task-id = {0}", nextTask);
     }
 
-    public int AddSubTask(SubTask st1)
+    public void AddSubTask()
     {
-        int nextSubTask = LastSId() + 1;
-        SubDict.Add(nextSubTask, st1);
-        st1.Id = nextSubTask;
-        Dict[st1.ParentId].SubTasks.Add(nextSubTask);
-        CheckComplete(st1.ParentId);
-        return nextSubTask;
+        string? input;
+        SubTask subtemp = new SubTask();
+        Console.WriteLine("Введите id задачи");
+        input = Console.ReadLine();
+        if (string.IsNullOrEmpty(input))
+        {
+            Environment.Exit(0);
+        }
+
+        if (TaskContainsIn(Int32.Parse(input)))
+        {
+            subtemp.ParentId = Int32.Parse(input);
+            Console.WriteLine("Введите описание");
+            input = Console.ReadLine();
+            if (string.IsNullOrEmpty(input))
+            {
+                Environment.Exit(0);
+            }
+
+            subtemp.Description = input;
+            int nextSubTask = LastSId() + 1;
+            subtemp.Id = nextSubTask;
+            Dict[subtemp.ParentId].SubTasks.Add(nextSubTask);
+            SubDict.Add(nextSubTask, subtemp);
+            CheckComplete(subtemp.ParentId);
+            Console.WriteLine("Подзадача создана, subtask-id = {0}", nextSubTask);
+        }
     }
 
     public void WriteOne(int id)
+
     {
+        if (id == -1)
+        {
+            string? input;
+            Console.WriteLine("Введите id задачи");
+            input = Console.ReadLine();
+            if (string.IsNullOrEmpty(input))
+            {
+                Environment.Exit(0);
+            }
+
+            id = Int32.Parse(input);
+        }
+
         if (TaskContainsIn(id))
         {
             if (Dict[id].SubTasks.Any())
@@ -177,15 +237,24 @@ public class ListOfTasks
         }
     }
 
-    public void DeleteOne(int id)
+    public void DeleteOne()
     {
+        string? input;
+        Console.WriteLine("Введите id задачи");
+        input = Console.ReadLine();
+        if (string.IsNullOrEmpty(input))
+        {
+            Environment.Exit(0);
+        }
+
+        int id = Int32.Parse(input);
         if (TaskContainsIn(id))
         {
             foreach (int i in Dict[id].SubTasks)
             {
                 SubDict.Remove(i);
             }
-            
+
             foreach (Group i in GroupDict.Values)
             {
                 if (i.GroupTasks.Contains(id))
@@ -193,13 +262,23 @@ public class ListOfTasks
                     i.GroupTasks.Remove(id);
                 }
             }
+
             Dict.Remove(id);
             Console.WriteLine("Задача с id = {0} удалена", id);
         }
     }
 
-    public void DeleteSOne(int id)
+    public void DeleteSOne()
     {
+        string? input;
+        Console.WriteLine("Введите id подзадачи");
+        input = Console.ReadLine();
+        if (string.IsNullOrEmpty(input))
+        {
+            Environment.Exit(0);
+        }
+
+        int id = Int32.Parse(input);
         if (SubTaskContainsIn(id))
         {
             Dict[SubDict[id].ParentId].SubTasks.Remove(id);
@@ -211,13 +290,37 @@ public class ListOfTasks
 
     public void DeleteAll()
     {
-        Dict.Clear();
-        SubDict.Clear();
-        Console.WriteLine("Все задачи были удалены");
+        string? input;
+        Console.WriteLine("Повторите команду для удаления всех задач");
+        input = Console.ReadLine();
+        if (input == "/delete-all")
+        {
+            Dict.Clear();
+            SubDict.Clear();
+            foreach (Group i in GroupDict.Values)
+            {
+                i.GroupTasks.Clear();
+            }
+
+            Console.WriteLine("Все задачи были удалены");
+        }
+        else
+        {
+            Console.WriteLine("Удаление отменено");
+        }
     }
 
-    public void PerformTask(int id)
+    public void PerformTask()
     {
+        string? input;
+        Console.WriteLine("Введите id задачи");
+        input = Console.ReadLine();
+        if (string.IsNullOrEmpty(input))
+        {
+            Environment.Exit(0);
+        }
+
+        int id = Int32.Parse(input);
         if (TaskContainsIn(id))
         {
             if (Dict[id].Complete == true)
@@ -240,8 +343,17 @@ public class ListOfTasks
         }
     }
 
-    public void PerformSubTask(int id)
+    public void PerformSubTask()
     {
+        string? input;
+        Console.WriteLine("Введите id подзадачи");
+        input = Console.ReadLine();
+        if (string.IsNullOrEmpty(input))
+        {
+            Environment.Exit(0);
+        }
+
+        int id = Int32.Parse(input);
         if (SubTaskContainsIn(id))
         {
             if (SubDict[id].Complete == true)
@@ -257,18 +369,46 @@ public class ListOfTasks
         }
     }
 
-    public int AddGroup(Group g1)
+    public void AddGroup()
     {
+        string? input;
+        Group tempGroup = new Group();
+        Console.WriteLine("Введите название");
+        input = Console.ReadLine();
+        if (string.IsNullOrEmpty(input))
+        {
+            Environment.Exit(0);
+        }
+
+        tempGroup.Name = input;
+
         int nextGroup = LastGId() + 1;
-        GroupDict.Add(nextGroup, g1);
-        g1.Id = nextGroup;
-        return nextGroup;
+        tempGroup.Id = nextGroup;
+        GroupDict.Add(nextGroup, tempGroup);
+        Console.WriteLine("Группа создана, group-id = {0}", nextGroup);
     }
 
-    public void TaskToGroup(int GId, int TId)
+    public void TaskToGroup()
     {
+        string? input;
+        Console.WriteLine("Введите id группы");
+        input = Console.ReadLine();
+        if (string.IsNullOrEmpty(input))
+        {
+            Environment.Exit(0);
+        }
+
+        int GId = Int32.Parse(input);
         if (GroupContainsIn(GId))
         {
+            Console.WriteLine("Введите id задачи");
+            input = Console.ReadLine();
+            if (string.IsNullOrEmpty(input))
+            {
+                Environment.Exit(0);
+            }
+
+            int TId = Int32.Parse(input);
             if (TaskContainsIn(TId))
             {
                 if (GroupDict[GId].GroupTasks.Contains(TId))
@@ -284,10 +424,28 @@ public class ListOfTasks
         }
     }
 
-    public void TaskFromGroup(int GId, int TId)
+    public void TaskFromGroup()
     {
+        string? input;
+        Console.WriteLine("Введите id группы");
+        input = Console.ReadLine();
+        if (string.IsNullOrEmpty(input))
+        {
+            Environment.Exit(0);
+        }
+
+        int GId = Int32.Parse(input);
         if (GroupContainsIn(GId))
         {
+            Console.WriteLine("Введите id задачи");
+            input = Console.ReadLine();
+            if (string.IsNullOrEmpty(input))
+            {
+                Environment.Exit(0);
+            }
+
+            int TId = Int32.Parse(input);
+
             if (TaskContainsIn(TId))
             {
                 if (!GroupDict[GId].GroupTasks.Contains(TId))
@@ -297,23 +455,46 @@ public class ListOfTasks
                 else
                 {
                     GroupDict[GId].GroupTasks.Remove(TId);
-                    Console.WriteLine("Задача с task-id = {0} теперь не содержится в группе с group-id = {1}", TId, GId);
+                    Console.WriteLine("Задача с task-id = {0} теперь не содержится в группе с group-id = {1}", TId,
+                        GId);
                 }
             }
         }
     }
 
-    public void DeleteGroup(int GId)
+    public void DeleteGroup()
     {
-        if (GroupContainsIn(GId))
+        string? input;
+        Console.WriteLine("Введите id группы");
+        input = Console.ReadLine();
+        if (string.IsNullOrEmpty(input))
         {
-            GroupDict.Remove(GId);
+            Environment.Exit(0);
+        }
+
+        int tempId = Int32.Parse(input);
+        if (GroupContainsIn(tempId))
+        {
+            GroupDict.Remove(tempId);
             Console.WriteLine("Группа удалена");
         }
     }
 
     public void ShowGroup(int GId)
     {
+        if (GId == -1)
+        {
+            string? input;
+            Console.WriteLine("Введите id группы");
+            input = Console.ReadLine();
+            if (string.IsNullOrEmpty(input))
+            {
+                Environment.Exit(0);
+            }
+
+            GId = Int32.Parse(input);
+        }
+
         if (GroupContainsIn(GId))
         {
             Console.WriteLine("group-id = {0}, {1}", GId, GroupDict[GId].Name);
@@ -324,7 +505,7 @@ public class ListOfTasks
             }
         }
     }
-    
+
     public void ShowGroups()
     {
         foreach (int i in GroupDict.Keys)
@@ -344,27 +525,47 @@ public class ListOfTasks
                 {
                     Console.WriteLine("Задачи на сегодня:");
                 }
+
                 counter += 1;
                 Console.Write("   {0})", counter);
                 WriteOne(i);
             }
+        }
 
-            if (counter == 0)
-            {
-                Console.WriteLine("Задач на сегодня нет");
-            }
-            else
-            {
-                Console.WriteLine("Количесвто сегодняшних задач равно {0}", counter);
-            }
+        if (counter == 0)
+        {
+            Console.WriteLine("Задач на сегодня нет");
+        }
+        else
+        {
+            Console.WriteLine("Количесвто сегодняшних задач равно {0}", counter);
         }
     }
 
-    public void SetDL(int id, DateTime dl)
+    public void SetDL()
     {
+        string? input;
+        Console.WriteLine("Введите id задачи");
+        input = Console.ReadLine();
+        if (string.IsNullOrEmpty(input))
+        {
+            Environment.Exit(0);
+        }
+
+        int id = Int32.Parse(input);
+
         if (TaskContainsIn(id))
         {
-            Dict[id].Dl = dl;
+            Console.WriteLine("Введите дату дедлайна (число, месяц, год)");
+            input = Console.ReadLine();
+            if (string.IsNullOrEmpty(input))
+            {
+                Environment.Exit(0);
+            }
+
+            string[] numsStrings = input.Split(", ");
+            Dict[id].Dl = new DateTime(Convert.ToInt32(numsStrings[2]), Convert.ToInt32(numsStrings[1]),
+                Convert.ToInt32(numsStrings[0]));
         }
     }
 }
