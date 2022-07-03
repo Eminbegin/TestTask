@@ -1,20 +1,58 @@
-﻿/*using System.ComponentModel;
-using System.Threading.Tasks.Dataflow;
-using System.IO;
-using System.Text.Json;*/
-
-using System.ComponentModel.Design;
-using System.Threading.Tasks.Dataflow;
+﻿using Newtonsoft.Json;
 
 namespace Taskii;
 
-using Newtonsoft.Json;
-
 public class ListOfTasks
 {
+    public Logger log = Logger.GetInstnce();
     public Dictionary<int, Task> Dict = new Dictionary<int, Task>();
     public Dictionary<int, SubTask> SubDict = new Dictionary<int, SubTask>();
     public Dictionary<int, Group> GroupDict = new Dictionary<int, Group>();
+
+    public string GetFromFile()
+    {
+      Environment.Exit(0);  log.AvailableTasks();
+        string? answer = Console.ReadLine();
+        log.EnterSome("path");
+        string? path = Console.ReadLine();
+        if (string.IsNullOrEmpty(path))
+        {
+            Environment.Exit(0);
+        }
+
+        if (answer == "Y")
+        {
+            if (!File.Exists(path))
+            {
+                throw new Exception("Файл не найден");
+            }
+
+            string tempJson1 = File.ReadAllText(path);
+            // path = System.IO.Path.Combine(System.IO.Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location), path);
+            ListOfTasks temp = JsonConvert.DeserializeObject<ListOfTasks>(tempJson1);
+            Dict = temp.Dict;
+            GroupDict = temp.GroupDict;
+            SubDict = temp.SubDict;
+        }
+        else if (answer == "N")
+        {
+            Environment.Exit(0);
+        }
+        else
+        {
+            Console.WriteLine("ЧЕЛ ХАРОШ");
+            Environment.Exit(0);
+        }
+
+        return path;
+    }
+
+    public void SaveToFile(string path)
+    {
+        string tempJson2 = JsonConvert.SerializeObject(this);
+        File.WriteAllText(path, tempJson2);
+        log.SuccessSave(path);
+    }
 
     private int LastId()
     {
@@ -71,7 +109,7 @@ public class ListOfTasks
     {
         if (!Dict.ContainsKey(id))
         {
-            Console.WriteLine("не существует задачи с id = {0}", id);
+            log.TaskNoExist(id);
             return false;
         }
 
@@ -82,7 +120,7 @@ public class ListOfTasks
     {
         if (!SubDict.ContainsKey(id))
         {
-            Console.WriteLine("не существует подзадачи с id = {0}", id);
+            log.SubTaskNoExist(id);
             return false;
         }
 
@@ -93,7 +131,7 @@ public class ListOfTasks
     {
         if (!GroupDict.ContainsKey(id))
         {
-            Console.WriteLine("не существует группы с id = {0}", id);
+            log.GroupNoExist(id);
             return false;
         }
 
@@ -104,7 +142,7 @@ public class ListOfTasks
     {
         string input;
         Task temp = new Task();
-        Console.WriteLine("Введите описание");
+        log.EnterSome("disc");
         input = Console.ReadLine();
         if (string.IsNullOrEmpty(input))
         {
@@ -112,7 +150,7 @@ public class ListOfTasks
         }
 
         temp.Description = input;
-        Console.WriteLine("Введите дату дедлайна (число, месяц, год); если его нет, введите \"-\"");
+        log.EnterSome("date");
         input = Console.ReadLine();
         if (string.IsNullOrEmpty(input))
         {
@@ -129,14 +167,14 @@ public class ListOfTasks
         int nextTask = LastId() + 1;
         temp.Id = nextTask;
         Dict.Add(nextTask, temp);
-        Console.WriteLine("Задача создана, task-id = {0}", nextTask);
+        log.SuccessfullyAdding(nextTask, "task");
     }
 
     public void AddSubTask()
     {
         string? input;
         SubTask subtemp = new SubTask();
-        Console.WriteLine("Введите id задачи");
+        log.EnterSome("task");
         input = Console.ReadLine();
         if (string.IsNullOrEmpty(input))
         {
@@ -146,7 +184,7 @@ public class ListOfTasks
         if (TaskContainsIn(Int32.Parse(input)))
         {
             subtemp.ParentId = Int32.Parse(input);
-            Console.WriteLine("Введите описание");
+            log.EnterSome("disc");
             input = Console.ReadLine();
             if (string.IsNullOrEmpty(input))
             {
@@ -159,7 +197,7 @@ public class ListOfTasks
             Dict[subtemp.ParentId].SubTasks.Add(nextSubTask);
             SubDict.Add(nextSubTask, subtemp);
             CheckComplete(subtemp.ParentId);
-            Console.WriteLine("Подзадача создана, subtask-id = {0}", nextSubTask);
+            log.SuccessfullyAdding(nextSubTask, "subtask");
         }
     }
 
@@ -169,7 +207,7 @@ public class ListOfTasks
         if (id == -1)
         {
             string? input;
-            Console.WriteLine("Введите id задачи");
+            log.EnterSome("task");
             input = Console.ReadLine();
             if (string.IsNullOrEmpty(input))
             {
@@ -184,22 +222,17 @@ public class ListOfTasks
             if (Dict[id].SubTasks.Any())
             {
                 // добавить в вывод процент выполнения.
-                Console.WriteLine("[{0}] {1}task-id = {2}, {3}", Dict[id].Complete ? "x" : " ",
-                    Dict[id].Dl == DateTime.MaxValue ? "" : Dict[id].Dl.ToShortDateString() + " ", id,
-                    Dict[id].Description);
+                log.PrintTask(Dict[id]);
                 SubTask subT;
                 foreach (int subId in Dict[id].SubTasks)
                 {
                     subT = SubDict[subId];
-                    Console.WriteLine("  - [{0}] subtask-id = {1}, {2}", subT.Complete ? "x" : " ", subT.Id,
-                        subT.Description);
+                    log.PrintSubtask(subT);
                 }
             }
             else
             {
-                Console.WriteLine("[{0}] {1}task-id = {2}, {3}", Dict[id].Complete ? "x" : " ",
-                    Dict[id].Dl == DateTime.MaxValue ? "" : Dict[id].Dl.ToShortDateString() + " ", id,
-                    Dict[id].Description);
+                log.PrintTask(Dict[id]);
             }
         }
     }
@@ -215,7 +248,7 @@ public class ListOfTasks
         }
         else
         {
-            Console.WriteLine("Список задач пуст");
+            log.EmptyTaskList();
         }
     }
 
@@ -233,14 +266,14 @@ public class ListOfTasks
         }
         else
         {
-            Console.WriteLine("Список задач пуст");
+            log.EmptyTaskList();
         }
     }
 
     public void DeleteOne()
     {
         string? input;
-        Console.WriteLine("Введите id задачи");
+        log.EnterSome("task");
         input = Console.ReadLine();
         if (string.IsNullOrEmpty(input))
         {
@@ -264,14 +297,14 @@ public class ListOfTasks
             }
 
             Dict.Remove(id);
-            Console.WriteLine("Задача с id = {0} удалена", id);
+            log.SuccessfullyRemoving(id, "task");
         }
     }
 
     public void DeleteSOne()
     {
         string? input;
-        Console.WriteLine("Введите id подзадачи");
+        log.EnterSome("subtask");
         input = Console.ReadLine();
         if (string.IsNullOrEmpty(input))
         {
@@ -284,14 +317,14 @@ public class ListOfTasks
             Dict[SubDict[id].ParentId].SubTasks.Remove(id);
             CheckComplete(SubDict[id].ParentId);
             SubDict.Remove(id);
-            Console.WriteLine("Подзадача с id = {0} удалена", id);
+            log.SuccessfullyRemoving(id, "subtask");
         }
     }
 
     public void DeleteAll()
     {
         string? input;
-        Console.WriteLine("Повторите команду для удаления всех задач");
+        log.Deletelogs("repeat");
         input = Console.ReadLine();
         if (input == "/delete-all")
         {
@@ -302,18 +335,18 @@ public class ListOfTasks
                 i.GroupTasks.Clear();
             }
 
-            Console.WriteLine("Все задачи были удалены");
+            log.Deletelogs("suc");
         }
         else
         {
-            Console.WriteLine("Удаление отменено");
+            log.Deletelogs("cancel");
         }
     }
 
     public void PerformTask()
     {
         string? input;
-        Console.WriteLine("Введите id задачи");
+        log.EnterSome("task");
         input = Console.ReadLine();
         if (string.IsNullOrEmpty(input))
         {
@@ -325,7 +358,7 @@ public class ListOfTasks
         {
             if (Dict[id].Complete == true)
             {
-                Console.WriteLine("Задача уже выполнена");
+                log.AlredyComp("task");
             }
             else
             {
@@ -338,7 +371,7 @@ public class ListOfTasks
                     }
                 }
 
-                Console.WriteLine("Задача с id = {0} теперь выполена", id);
+                log.NowComp(id, "task");
             }
         }
     }
@@ -346,7 +379,7 @@ public class ListOfTasks
     public void PerformSubTask()
     {
         string? input;
-        Console.WriteLine("Введите id подзадачи");
+        log.EnterSome("subtask");
         input = Console.ReadLine();
         if (string.IsNullOrEmpty(input))
         {
@@ -358,13 +391,13 @@ public class ListOfTasks
         {
             if (SubDict[id].Complete == true)
             {
-                Console.WriteLine("Подзадача уже выполнена");
+                log.AlredyComp("subtask");
             }
             else
             {
                 SubDict[id].PerformSubTask();
                 CheckComplete(SubDict[id].ParentId);
-                Console.WriteLine("Задача с id = {0} теперь выполена", id);
+                log.NowComp(id, "subtask");
             }
         }
     }
@@ -373,7 +406,7 @@ public class ListOfTasks
     {
         string? input;
         Group tempGroup = new Group();
-        Console.WriteLine("Введите название");
+        log.EnterSome("name");
         input = Console.ReadLine();
         if (string.IsNullOrEmpty(input))
         {
@@ -385,13 +418,13 @@ public class ListOfTasks
         int nextGroup = LastGId() + 1;
         tempGroup.Id = nextGroup;
         GroupDict.Add(nextGroup, tempGroup);
-        Console.WriteLine("Группа создана, group-id = {0}", nextGroup);
+        log.SuccessfullyAdding(nextGroup, "group");
     }
 
     public void TaskToGroup()
     {
         string? input;
-        Console.WriteLine("Введите id группы");
+        log.EnterSome("group");
         input = Console.ReadLine();
         if (string.IsNullOrEmpty(input))
         {
@@ -401,7 +434,7 @@ public class ListOfTasks
         int GId = Int32.Parse(input);
         if (GroupContainsIn(GId))
         {
-            Console.WriteLine("Введите id задачи");
+            log.EnterSome("task");
             input = Console.ReadLine();
             if (string.IsNullOrEmpty(input))
             {
@@ -413,12 +446,12 @@ public class ListOfTasks
             {
                 if (GroupDict[GId].GroupTasks.Contains(TId))
                 {
-                    Console.WriteLine("Задача с task-id = {0} уже содержится в группе с group-id = {1}", TId, GId);
+                    log.FromToGroup(TId, GId, 1);
                 }
                 else
                 {
                     GroupDict[GId].GroupTasks.Add(TId);
-                    Console.WriteLine("Задача с task-id = {0} теперь содержится в группе с group-id = {1}", TId, GId);
+                    log.FromToGroup(TId, GId, 2);
                 }
             }
         }
@@ -427,7 +460,7 @@ public class ListOfTasks
     public void TaskFromGroup()
     {
         string? input;
-        Console.WriteLine("Введите id группы");
+        log.EnterSome("group");
         input = Console.ReadLine();
         if (string.IsNullOrEmpty(input))
         {
@@ -437,7 +470,7 @@ public class ListOfTasks
         int GId = Int32.Parse(input);
         if (GroupContainsIn(GId))
         {
-            Console.WriteLine("Введите id задачи");
+            log.EnterSome("task");
             input = Console.ReadLine();
             if (string.IsNullOrEmpty(input))
             {
@@ -450,13 +483,12 @@ public class ListOfTasks
             {
                 if (!GroupDict[GId].GroupTasks.Contains(TId))
                 {
-                    Console.WriteLine("Задача с task-id = {0} и так не содержится в группе с group-id = {1}", TId, GId);
+                    log.FromToGroup(TId, GId, 3);
                 }
                 else
                 {
                     GroupDict[GId].GroupTasks.Remove(TId);
-                    Console.WriteLine("Задача с task-id = {0} теперь не содержится в группе с group-id = {1}", TId,
-                        GId);
+                    log.FromToGroup(TId, GId, 4);
                 }
             }
         }
@@ -465,7 +497,7 @@ public class ListOfTasks
     public void DeleteGroup()
     {
         string? input;
-        Console.WriteLine("Введите id группы");
+        log.EnterSome("group");
         input = Console.ReadLine();
         if (string.IsNullOrEmpty(input))
         {
@@ -476,7 +508,7 @@ public class ListOfTasks
         if (GroupContainsIn(tempId))
         {
             GroupDict.Remove(tempId);
-            Console.WriteLine("Группа удалена");
+            log.SuccessfullyRemoving(tempId, "group");
         }
     }
 
@@ -485,7 +517,7 @@ public class ListOfTasks
         if (GId == -1)
         {
             string? input;
-            Console.WriteLine("Введите id группы");
+            log.EnterSome("group");
             input = Console.ReadLine();
             if (string.IsNullOrEmpty(input))
             {
@@ -497,10 +529,10 @@ public class ListOfTasks
 
         if (GroupContainsIn(GId))
         {
-            Console.WriteLine("group-id = {0}, {1}", GId, GroupDict[GId].Name);
+            log.PrintGroup(GroupDict[GId]);
             foreach (int i in GroupDict[GId].GroupTasks)
             {
-                Console.Write(" *");
+                log.WriteSpecial(0);
                 WriteOne(i);
             }
         }
@@ -523,29 +555,29 @@ public class ListOfTasks
             {
                 if (counter == 0)
                 {
-                    Console.WriteLine("Задачи на сегодня:");
+                    log.TodayLogs("today", -1);
                 }
 
                 counter += 1;
-                Console.Write("   {0})", counter);
+                log.WriteSpecial(counter);
                 WriteOne(i);
             }
         }
 
         if (counter == 0)
         {
-            Console.WriteLine("Задач на сегодня нет");
+            log.TodayLogs("no", -1);
         }
         else
         {
-            Console.WriteLine("Количесвто сегодняшних задач равно {0}", counter);
+            log.TodayLogs("count", counter);
         }
     }
 
     public void SetDL()
     {
         string? input;
-        Console.WriteLine("Введите id задачи");
+        log.EnterSome("task");
         input = Console.ReadLine();
         if (string.IsNullOrEmpty(input))
         {
@@ -556,7 +588,7 @@ public class ListOfTasks
 
         if (TaskContainsIn(id))
         {
-            Console.WriteLine("Введите дату дедлайна (число, месяц, год)");
+            log.EnterSome("deate1");
             input = Console.ReadLine();
             if (string.IsNullOrEmpty(input))
             {
