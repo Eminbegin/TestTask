@@ -1,57 +1,18 @@
-﻿using Newtonsoft.Json;
+﻿using System.Net.Sockets;
+using Newtonsoft.Json;
 
 namespace Taskii;
 
 public class ListOfTasks
 {
-    public Logger log = Logger.GetInstnce();
+    private Logger log = Logger.GetInstnce();
     public Dictionary<int, Task> Dict = new Dictionary<int, Task>();
     public Dictionary<int, SubTask> SubDict = new Dictionary<int, SubTask>();
     public Dictionary<int, Group> GroupDict = new Dictionary<int, Group>();
-
-    public string GetFromFile()
+    
+    public string GetJson()
     {
-      Environment.Exit(0);  log.AvailableTasks();
-        string? answer = Console.ReadLine();
-        log.EnterSome("path");
-        string? path = Console.ReadLine();
-        if (string.IsNullOrEmpty(path))
-        {
-            Environment.Exit(0);
-        }
-
-        if (answer == "Y")
-        {
-            if (!File.Exists(path))
-            {
-                throw new Exception("Файл не найден");
-            }
-
-            string tempJson1 = File.ReadAllText(path);
-            // path = System.IO.Path.Combine(System.IO.Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location), path);
-            ListOfTasks temp = JsonConvert.DeserializeObject<ListOfTasks>(tempJson1);
-            Dict = temp.Dict;
-            GroupDict = temp.GroupDict;
-            SubDict = temp.SubDict;
-        }
-        else if (answer == "N")
-        {
-            Environment.Exit(0);
-        }
-        else
-        {
-            Console.WriteLine("ЧЕЛ ХАРОШ");
-            Environment.Exit(0);
-        }
-
-        return path;
-    }
-
-    public void SaveToFile(string path)
-    {
-        string tempJson2 = JsonConvert.SerializeObject(this);
-        File.WriteAllText(path, tempJson2);
-        log.SuccessSave(path);
+        return JsonConvert.SerializeObject(this);
     }
 
     private int LastId()
@@ -84,7 +45,7 @@ public class ListOfTasks
         return 0;
     }
 
-    public void CheckComplete(int id)
+    private void CheckComplete(int id)
     {
         bool checkFullComplete = true;
         foreach (int i in Dict[id].SubTasks)
@@ -138,102 +99,38 @@ public class ListOfTasks
         return true;
     }
 
-    public void AddTask()
+    public void AddTask(Task temp)
     {
-        string input;
-        Task temp = new Task();
-        log.EnterSome("disc");
-        input = Console.ReadLine();
-        if (string.IsNullOrEmpty(input))
-        {
-            Environment.Exit(0);
-        }
-
-        temp.Description = input;
-        log.EnterSome("date");
-        input = Console.ReadLine();
-        if (string.IsNullOrEmpty(input))
-        {
-            Environment.Exit(0);
-        }
-
-        if (input != "-")
-        {
-            string[] numsStrings = input.Split(", ");
-            temp.Dl = new DateTime(Convert.ToInt32(numsStrings[2]), Convert.ToInt32(numsStrings[1]),
-                Convert.ToInt32(numsStrings[0]));
-        }
-
         int nextTask = LastId() + 1;
         temp.Id = nextTask;
         Dict.Add(nextTask, temp);
         log.SuccessfullyAdding(nextTask, "task");
     }
 
-    public void AddSubTask()
+    public void AddSubTask(SubTask subTemp)
     {
-        string? input;
-        SubTask subtemp = new SubTask();
-        log.EnterSome("task");
-        input = Console.ReadLine();
-        if (string.IsNullOrEmpty(input))
-        {
-            Environment.Exit(0);
-        }
-
-        if (TaskContainsIn(Int32.Parse(input)))
-        {
-            subtemp.ParentId = Int32.Parse(input);
-            log.EnterSome("disc");
-            input = Console.ReadLine();
-            if (string.IsNullOrEmpty(input))
-            {
-                Environment.Exit(0);
-            }
-
-            subtemp.Description = input;
-            int nextSubTask = LastSId() + 1;
-            subtemp.Id = nextSubTask;
-            Dict[subtemp.ParentId].SubTasks.Add(nextSubTask);
-            SubDict.Add(nextSubTask, subtemp);
-            CheckComplete(subtemp.ParentId);
-            log.SuccessfullyAdding(nextSubTask, "subtask");
-        }
+        int nextSubTask = LastSId() + 1;
+        subTemp.Id = nextSubTask;
+        Dict[subTemp.ParentId].SubTasks.Add(nextSubTask);
+        SubDict.Add(nextSubTask, subTemp);
+        CheckComplete(subTemp.ParentId);
+        log.SuccessfullyAdding(nextSubTask, "subtask");
     }
 
     public void WriteOne(int id)
-
     {
-        if (id == -1)
+        if (Dict[id].SubTasks.Any())
         {
-            string? input;
-            log.EnterSome("task");
-            input = Console.ReadLine();
-            if (string.IsNullOrEmpty(input))
+            log.PrintTask(Dict[id]);
+            foreach (int subId in Dict[id].SubTasks)
             {
-                Environment.Exit(0);
+                SubTask subTemp = SubDict[subId];
+                log.PrintSubtask(subTemp);
             }
-
-            id = Int32.Parse(input);
         }
-
-        if (TaskContainsIn(id))
+        else
         {
-            if (Dict[id].SubTasks.Any())
-            {
-                // добавить в вывод процент выполнения.
-                log.PrintTask(Dict[id]);
-                SubTask subT;
-                foreach (int subId in Dict[id].SubTasks)
-                {
-                    subT = SubDict[subId];
-                    log.PrintSubtask(subT);
-                }
-            }
-            else
-            {
-                log.PrintTask(Dict[id]);
-            }
+            log.PrintTask(Dict[id]);
         }
     }
 
@@ -270,271 +167,124 @@ public class ListOfTasks
         }
     }
 
-    public void DeleteOne()
+    public void DeleteOne(int id)
     {
-        string? input;
-        log.EnterSome("task");
-        input = Console.ReadLine();
-        if (string.IsNullOrEmpty(input))
+        foreach (int i in Dict[id].SubTasks)
         {
-            Environment.Exit(0);
+            SubDict.Remove(i);
         }
 
-        int id = Int32.Parse(input);
-        if (TaskContainsIn(id))
+        foreach (Group i in GroupDict.Values)
         {
-            foreach (int i in Dict[id].SubTasks)
+            if (i.GroupTasks.Contains(id))
             {
-                SubDict.Remove(i);
+                i.GroupTasks.Remove(id);
             }
-
-            foreach (Group i in GroupDict.Values)
-            {
-                if (i.GroupTasks.Contains(id))
-                {
-                    i.GroupTasks.Remove(id);
-                }
-            }
-
-            Dict.Remove(id);
-            log.SuccessfullyRemoving(id, "task");
         }
+
+        Dict.Remove(id);
+        log.SuccessfullyRemoving(id, "task");
     }
 
-    public void DeleteSOne()
+    public void DeleteSOne(int id)
     {
-        string? input;
-        log.EnterSome("subtask");
-        input = Console.ReadLine();
-        if (string.IsNullOrEmpty(input))
-        {
-            Environment.Exit(0);
-        }
-
-        int id = Int32.Parse(input);
-        if (SubTaskContainsIn(id))
-        {
-            Dict[SubDict[id].ParentId].SubTasks.Remove(id);
-            CheckComplete(SubDict[id].ParentId);
-            SubDict.Remove(id);
-            log.SuccessfullyRemoving(id, "subtask");
-        }
+        Dict[SubDict[id].ParentId].SubTasks.Remove(id);
+        CheckComplete(SubDict[id].ParentId);
+        SubDict.Remove(id);
     }
 
     public void DeleteAll()
     {
-        string? input;
-        log.Deletelogs("repeat");
-        input = Console.ReadLine();
-        if (input == "/delete-all")
+        Dict.Clear();
+        SubDict.Clear();
+        foreach (Group i in GroupDict.Values)
         {
-            Dict.Clear();
-            SubDict.Clear();
-            foreach (Group i in GroupDict.Values)
+            i.GroupTasks.Clear();
+        }
+    }
+
+    public void PerformTask(int id)
+    {
+        if (Dict[id].Complete)
+        {
+            log.AlredyComp("task");
+        }
+        else 
+        {
+            Dict[id].PerformTask();
+            if (Dict[id].SubTasks.Any())
             {
-                i.GroupTasks.Clear();
+                foreach (int i in Dict[id].SubTasks)
+                {
+                    SubDict[i].Complete = true;
+                }
             }
 
-            log.Deletelogs("suc");
+            log.NowComp(id, "task");
+        }
+    }
+
+    public void PerformSubTask(int id)
+    {
+        if (SubDict[id].Complete)
+        {
+            log.AlredyComp("subtask");
         }
         else
         {
-            log.Deletelogs("cancel");
+            SubDict[id].PerformSubTask();
+            CheckComplete(SubDict[id].ParentId);
+            log.NowComp(id, "subtask");
         }
     }
 
-    public void PerformTask()
+    public void AddGroup(Group tempGroup)
     {
-        string? input;
-        log.EnterSome("task");
-        input = Console.ReadLine();
-        if (string.IsNullOrEmpty(input))
-        {
-            Environment.Exit(0);
-        }
-
-        int id = Int32.Parse(input);
-        if (TaskContainsIn(id))
-        {
-            if (Dict[id].Complete == true)
-            {
-                log.AlredyComp("task");
-            }
-            else
-            {
-                Dict[id].PerformTask();
-                if (Dict[id].SubTasks.Any())
-                {
-                    foreach (int i in Dict[id].SubTasks)
-                    {
-                        SubDict[i].Complete = true;
-                    }
-                }
-
-                log.NowComp(id, "task");
-            }
-        }
-    }
-
-    public void PerformSubTask()
-    {
-        string? input;
-        log.EnterSome("subtask");
-        input = Console.ReadLine();
-        if (string.IsNullOrEmpty(input))
-        {
-            Environment.Exit(0);
-        }
-
-        int id = Int32.Parse(input);
-        if (SubTaskContainsIn(id))
-        {
-            if (SubDict[id].Complete == true)
-            {
-                log.AlredyComp("subtask");
-            }
-            else
-            {
-                SubDict[id].PerformSubTask();
-                CheckComplete(SubDict[id].ParentId);
-                log.NowComp(id, "subtask");
-            }
-        }
-    }
-
-    public void AddGroup()
-    {
-        string? input;
-        Group tempGroup = new Group();
-        log.EnterSome("name");
-        input = Console.ReadLine();
-        if (string.IsNullOrEmpty(input))
-        {
-            Environment.Exit(0);
-        }
-
-        tempGroup.Name = input;
-
         int nextGroup = LastGId() + 1;
         tempGroup.Id = nextGroup;
         GroupDict.Add(nextGroup, tempGroup);
         log.SuccessfullyAdding(nextGroup, "group");
     }
 
-    public void TaskToGroup()
+    public void TaskToGroup(int gid, int tid)
     {
-        string? input;
-        log.EnterSome("group");
-        input = Console.ReadLine();
-        if (string.IsNullOrEmpty(input))
+        if (GroupDict[gid].GroupTasks.Contains(tid))
         {
-            Environment.Exit(0);
+            log.FromToGroup(tid, gid, 1);
         }
-
-        int GId = Int32.Parse(input);
-        if (GroupContainsIn(GId))
+        else
         {
-            log.EnterSome("task");
-            input = Console.ReadLine();
-            if (string.IsNullOrEmpty(input))
-            {
-                Environment.Exit(0);
-            }
-
-            int TId = Int32.Parse(input);
-            if (TaskContainsIn(TId))
-            {
-                if (GroupDict[GId].GroupTasks.Contains(TId))
-                {
-                    log.FromToGroup(TId, GId, 1);
-                }
-                else
-                {
-                    GroupDict[GId].GroupTasks.Add(TId);
-                    log.FromToGroup(TId, GId, 2);
-                }
-            }
+            GroupDict[gid].GroupTasks.Add(tid);
+            log.FromToGroup(tid, gid, 2);
         }
     }
 
-    public void TaskFromGroup()
+    public void TaskFromGroup(int gid, int tid)
     {
-        string? input;
-        log.EnterSome("group");
-        input = Console.ReadLine();
-        if (string.IsNullOrEmpty(input))
+        if (!GroupDict[gid].GroupTasks.Contains(tid))
         {
-            Environment.Exit(0);
+            log.FromToGroup(tid, gid, 3);
         }
-
-        int GId = Int32.Parse(input);
-        if (GroupContainsIn(GId))
+        else
         {
-            log.EnterSome("task");
-            input = Console.ReadLine();
-            if (string.IsNullOrEmpty(input))
-            {
-                Environment.Exit(0);
-            }
-
-            int TId = Int32.Parse(input);
-
-            if (TaskContainsIn(TId))
-            {
-                if (!GroupDict[GId].GroupTasks.Contains(TId))
-                {
-                    log.FromToGroup(TId, GId, 3);
-                }
-                else
-                {
-                    GroupDict[GId].GroupTasks.Remove(TId);
-                    log.FromToGroup(TId, GId, 4);
-                }
-            }
+            GroupDict[gid].GroupTasks.Remove(tid);
+            log.FromToGroup(tid, gid, 4);
         }
     }
 
-    public void DeleteGroup()
+    public void DeleteGroup(int id)
     {
-        string? input;
-        log.EnterSome("group");
-        input = Console.ReadLine();
-        if (string.IsNullOrEmpty(input))
-        {
-            Environment.Exit(0);
-        }
-
-        int tempId = Int32.Parse(input);
-        if (GroupContainsIn(tempId))
-        {
-            GroupDict.Remove(tempId);
-            log.SuccessfullyRemoving(tempId, "group");
-        }
+        GroupDict.Remove(id);
+        log.SuccessfullyRemoving(id, "group");
     }
 
-    public void ShowGroup(int GId)
+    public void ShowGroup(int gid)
     {
-        if (GId == -1)
+        log.PrintGroup(GroupDict[gid]);
+        foreach (int i in GroupDict[gid].GroupTasks)
         {
-            string? input;
-            log.EnterSome("group");
-            input = Console.ReadLine();
-            if (string.IsNullOrEmpty(input))
-            {
-                Environment.Exit(0);
-            }
-
-            GId = Int32.Parse(input);
-        }
-
-        if (GroupContainsIn(GId))
-        {
-            log.PrintGroup(GroupDict[GId]);
-            foreach (int i in GroupDict[GId].GroupTasks)
-            {
-                log.WriteSpecial(0);
-                WriteOne(i);
-            }
+            log.WriteSpecial(0);
+            WriteOne(i);
         }
     }
 
@@ -574,30 +324,9 @@ public class ListOfTasks
         }
     }
 
-    public void SetDL()
+    public void SetDl(int id, string[] numsStrings)
     {
-        string? input;
-        log.EnterSome("task");
-        input = Console.ReadLine();
-        if (string.IsNullOrEmpty(input))
-        {
-            Environment.Exit(0);
-        }
-
-        int id = Int32.Parse(input);
-
-        if (TaskContainsIn(id))
-        {
-            log.EnterSome("deate1");
-            input = Console.ReadLine();
-            if (string.IsNullOrEmpty(input))
-            {
-                Environment.Exit(0);
-            }
-
-            string[] numsStrings = input.Split(", ");
-            Dict[id].Dl = new DateTime(Convert.ToInt32(numsStrings[2]), Convert.ToInt32(numsStrings[1]),
-                Convert.ToInt32(numsStrings[0]));
-        }
+        Dict[id].Dl = new DateTime(Convert.ToInt32(numsStrings[2]), Convert.ToInt32(numsStrings[1]),
+            Convert.ToInt32(numsStrings[0]));
     }
 }
